@@ -154,22 +154,45 @@ def context(raw, months):
 
 
 # ---------------------------------------------------------------- figures
+HIGHLIGHT = {"Pasar Kramatjati": "Jakarta (Pasar Kramatjati)", "Pasar Yotefa Abepura": "Papua (Pasar Yotefa)"}
+HIGHLIGHT_COLORS = ["#0b0b0b", "#6250d6"]
+
+
+def rp_k(v, _=None):
+    return f"Rp {v / 1000:,.0f}k"
+
+
 def fig_prices(p, food):
-    g = p[p.food == food]
-    fig, ax = plt.subplots(figsize=(11, 4.6))
-    for _, s in g.groupby("market_id"):
-        ax.plot(s.month, s.price_clean, color=C_MUTED, lw=0.5, alpha=0.5)
-    nat = g.groupby("month").price_clean.median()
-    ax.plot(nat.index, nat.values, color=C_SERIES[food], lw=2, label="Median of all markets")
-    ax.axvspan(pd.Timestamp("2017-04-01"), pd.Timestamp("2019-12-01"), color="#f3f2ee", zorder=0)
+    """Median of all markets, band for the middle 50%, two named markets for contrast (2020 onwards)."""
+    g = p[(p.food == food) & (p.month >= MODEL_START)]
+    q = g.groupby("month").price_clean.quantile([0.25, 0.5, 0.75]).unstack()
+    fig, ax = plt.subplots(figsize=(11, 4.8))
+    ax.fill_between(q.index, q[0.25], q[0.75], color=C_SERIES[food], alpha=0.15, lw=0,
+                    label="Middle 50% of markets")
+    ax.plot(q.index, q[0.5], color=C_SERIES[food], lw=2.5, label="Median market")
+    end = q.index.max()
+    labels = [(q[0.5].iat[-1], f"Median {rp_k(q[0.5].iat[-1])}", C_SERIES[food], "bold")]
+    for (mname, label), color in zip(HIGHLIGHT.items(), HIGHLIGHT_COLORS):
+        s = g[g.market == mname].set_index("month").price_clean
+        if s.dropna().empty:
+            continue
+        ax.plot(s.index, s.values, color=color, lw=1.2, label=label)
+        labels.append((s.dropna().iat[-1], label.split(" (")[0], color, "normal"))
+    # right-edge labels, pushed apart so they do not overlap
     y0, y1 = ax.get_ylim()
-    ax.text(pd.Timestamp("2018-08-01"), (y0 + y1) / 2, "no market data\n2017-04 to 2019-12", ha="center",
-            va="center", color=C_TEXT, fontsize=9)
-    ax.plot([], [], color=C_MUTED, lw=1, label="One market")
-    ax.legend(frameon=False, loc="lower right", fontsize=9)
-    ax.set_title(f"{LABELS[food]}: retail price per kg, {g.market_id.nunique()} markets (IDR)",
-                 loc="left", fontsize=11, color="#0b0b0b")
-    ax.yaxis.set_major_formatter(matplotlib.ticker.FuncFormatter(lambda v, _: f"{v:,.0f}"))
+    gap, prev = (y1 - y0) * 0.055, None
+    for y, text, color, weight in sorted(labels):
+        y = y if prev is None else max(y, prev + gap)
+        ax.text(end + pd.Timedelta(days=20), y, text, color=color, fontsize=9, va="center", fontweight=weight)
+        prev = y
+    change = q[0.5].iat[-1] / q[0.5].iat[0] - 1
+    fig.suptitle(f"{LABELS[food]}: typical market price {'up' if change > 0 else 'down'} {abs(change):.0%} "
+                 f"since January 2020", x=0.01, ha="left", fontsize=12, fontweight="bold")
+    ax.set_title(f"Retail price per kg in {g.market_id.nunique()} markets. Few markets reported in "
+                 "Feb-May 2024 and Jan 2026.", loc="left", fontsize=9, color=C_TEXT)
+    ax.yaxis.set_major_formatter(matplotlib.ticker.FuncFormatter(rp_k))
+    ax.set_xlim(q.index.min(), end + pd.Timedelta(days=150))
+    ax.legend(frameon=False, loc="upper left", fontsize=9)
     style_axes(ax)
     fig.tight_layout()
     fig.savefig(FIG / f"prices_{food}.png", dpi=130)

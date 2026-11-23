@@ -14,7 +14,7 @@ when a market's forecast is more than 15% above its normal trend.
 
 - **The naive forecast ("next month = this month") is the one to beat, and it won.** In a rolling
   backtest (22 origins, 2021-03 to 2026-08, about 40,000 forecasts per model) SARIMA and LightGBM
-  had 4% to 36% higher error than naive at every horizon. Prices are sticky: in 43-64% of
+  had 4% to 44% higher error than naive at every horizon. Prices are sticky: in 43-64% of
   the one-month cases the price did not change at all.
 - **Error is small for rice and sugar, larger for oil:** naive MAPE 0.9% (rice, 1 month) to 5.2%
   (oil, 3 months).
@@ -28,7 +28,7 @@ when a market's forecast is more than 15% above its normal trend.
 | Sugar: naive / SARIMA / LightGBM | 1.49 / 1.79 / 1.71% | 2.53 / 2.80 / 3.06% | 3.21 / 3.47 / 4.62% |
 | Oil: naive / SARIMA / LightGBM | 2.42 / 2.76 / 2.85% | 4.19 / 4.75 / 5.34% | 5.15 / 5.80 / 6.98% |
 
-![Backtest error](figures/backtest_mape.png)
+![Error of SARIMA and LightGBM relative to naive](figures/backtest_mape.png)
 
 Full tables: [`reports/model.md`](reports/model.md), [`reports/explore.md`](reports/explore.md).
 

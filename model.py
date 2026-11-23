@@ -314,20 +314,31 @@ def report(m, recent, al, best, fc, imp, last, bt):
 
 
 def fig_mape(m):
-    fig, axes = plt.subplots(1, len(FOODS), figsize=(12, 3.6), sharey=True)
-    w = 0.26
+    """Error of each model relative to naive: 0 = as good as naive, above 0 = worse."""
+    piv = m.pivot_table(index=["food", "h"], columns="model", values="mape")
+    rel = (piv[["sarima", "lgbm"]].div(piv.naive, axis=0) - 1) * 100
+    fig, axes = plt.subplots(1, len(FOODS), figsize=(12, 3.8), sharey=True)
+    w = 0.36
     for ax, food in zip(axes, FOODS):
-        g = m[m.food == food]
-        for i, model in enumerate(MODELS):
-            s = g[g.model == model].sort_values("h")
-            ax.bar(s.h + (i - 1) * w, s.mape * 100, width=w - 0.03, color=C_MODEL[model],
-                   label={"naive": "Naive", "sarima": "SARIMA", "lgbm": "LightGBM"}[model])
-        ax.set_xticks(list(HORIZONS), [f"{h} mo" for h in HORIZONS])
+        r = rel.loc[food]
+        for i, model in enumerate(("sarima", "lgbm")):
+            x = np.array(r.index) + (i - 0.5) * w
+            bars = ax.bar(x, r[model], width=w - 0.04, color=C_MODEL[model],
+                          label={"sarima": "SARIMA", "lgbm": "LightGBM"}[model])
+            for xi, v in zip(x, r[model]):
+                ax.text(xi, v + (1 if v >= 0 else -1), f"{v:+.0f}%", ha="center",
+                        va="bottom" if v >= 0 else "top", fontsize=8, color="#52514e")
+        ax.axhline(0, color="#0b0b0b", lw=1)
+        ax.set_xticks(list(HORIZONS), [f"{h} mo ahead" for h in HORIZONS])
         ax.set_title(LABELS[food], loc="left", fontsize=10)
+        ax.yaxis.set_major_formatter(matplotlib.ticker.FuncFormatter(lambda v, _: f"{v:+.0f}%"))
         style_axes(ax)
-    axes[0].set_ylabel("MAPE (%)")
-    axes[0].legend(frameon=False, fontsize=8)
-    fig.suptitle("Backtest error by forecast horizon (lower is better)", x=0.01, ha="left", fontsize=11)
+    axes[0].set_ylabel("Error vs naive")
+    axes[0].text(0.02, 0.98, "0 = naive (next month = this month)", transform=axes[0].transAxes,
+                 fontsize=8, va="top", color="#52514e")
+    axes[-1].legend(frameon=False, fontsize=8, loc="upper left")
+    fig.suptitle("Neither model beats the naive forecast: bars above 0 mean more error than naive",
+                 x=0.01, ha="left", fontsize=12, fontweight="bold")
     fig.tight_layout()
     fig.savefig(FIG / "backtest_mape.png", dpi=130)
     plt.close(fig)
