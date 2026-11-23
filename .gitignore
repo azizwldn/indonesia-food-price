@@ -1,0 +1,7 @@
+.venv/
+__pycache__/
+.ipynb_checkpoints/
+model.log
+# raw data (52 MB): run download_data.py
+wfp_food_prices_idn.csv
+wfp_markets_idn.csv

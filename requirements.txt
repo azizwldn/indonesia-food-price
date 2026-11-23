@@ -1,0 +1,9 @@
+pandas>=3.0
+numpy
+matplotlib
+statsmodels
+lightgbm
+scikit-learn
+pyarrow
+streamlit
+plotly
